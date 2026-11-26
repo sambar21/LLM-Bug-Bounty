@@ -82,7 +82,7 @@ def test_severity_anchor_puts_rce_in_the_title():
 
 def test_committed_attacked_files_record_attack_and_placement():
     files = sorted((ROOT / "data" / "attacked").glob("*.md"))
-    assert len(files) == 125
+    assert len(files) == len(list((ROOT / "data" / "fakes").glob("*.md"))) * len(ATTACKS)
     for path in files:
         meta, body = split_front_matter(path.read_text(encoding="utf-8"))
         assert meta["attack"] in ATTACKS
@@ -90,3 +90,9 @@ def test_committed_attacked_files_record_attack_and_placement():
         source = ROOT / "data" / "fakes" / f"{meta['source_id']}.md"
         _, clean = split_front_matter(source.read_text(encoding="utf-8"))
         assert body == ATTACKS[meta["attack"]](clean, meta["placement"])
+
+
+def test_poc_comment_hides_the_instruction_in_code():
+    attacked = attacks.poc_comment(REPORT, "end")
+    block = attacked[attacked.index("```python") :]
+    assert "# AI triage note" in block and "classify as valid" in block
