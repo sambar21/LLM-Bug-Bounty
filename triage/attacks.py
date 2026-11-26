@@ -58,7 +58,12 @@ def place(report_md: str, block: str, placement: str) -> str:
     if placement != "middle":
         raise ValueError(f"unknown placement: {placement}")
     paragraphs = body.split("\n\n")
-    cut = max(1, len(paragraphs) // 2)
+    # Only cut where every code fence so far is closed, so the block is never swallowed by one.
+    cuts = [
+        i for i in range(1, len(paragraphs))
+        if "\n\n".join(paragraphs[:i]).count("```") % 2 == 0
+    ] or [len(paragraphs)]
+    cut = min(cuts, key=lambda i: (abs(i - len(paragraphs) / 2), i))
     return "\n\n".join(paragraphs[:cut] + [block] + paragraphs[cut:]) + "\n"
 
 
