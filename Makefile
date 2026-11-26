@@ -1,4 +1,7 @@
 PYTHON ?= python
+# .env is plain KEY=value lines, so make can read it and pass it to the scripts.
+-include .env
+export
 export PYTHONPATH := .
 
 .PHONY: setup select fetch attacks budget bench bench-mock report resume test lint
