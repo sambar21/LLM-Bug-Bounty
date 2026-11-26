@@ -13,8 +13,8 @@ GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 DEFAULT_MODELS = {
     "JUDGE_A_MODEL": "openai/gpt-oss-120b",
     "JUDGE_B_MODEL": "openai/gpt-oss-20b",
-    # The spec named qwen3.8-27b; Groq does not serve it, so this is the nearest Qwen3.
-    "EXTRACTOR_MODEL": "qwen/qwen3-32b",
+    # A different family on purpose: free-tier limits are per model, so this spreads the load.
+    "EXTRACTOR_MODEL": "qwen/qwen3.8-27b",
     "GUARD_MODEL": "meta-llama/llama-prompt-guard-2-86m",
 }
 

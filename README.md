@@ -30,7 +30,7 @@ section embeds `results/table.md` and `results/heatmap.png`.
     that JSON, never the raw text.
   - `guard`: Prompt Guard 2 86M on 1,500-character chunks; flagged reports are rejected,
     the rest reuse the baseline verdict.
-- Judges: `openai/gpt-oss-120b` and `openai/gpt-oss-20b`. Extractor: `qwen/qwen3-32b`.
+- Judges: `openai/gpt-oss-120b` and `openai/gpt-oss-20b`. Extractor: `qwen/qwen3.8-27b`.
   All on Groq's free tier, temperature 0.
 - Metrics (`triage/metrics.py`): precision and recall on real plus clean fakes, false
   approval rate, attack success rate (ASR), attack lift (ASR minus false approval rate),

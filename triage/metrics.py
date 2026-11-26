@@ -7,10 +7,11 @@ ILLUSTRATIVE_PAYOUT = {"none": 0, "low": 200, "medium": 2_000, "high": 15_000, "
 
 # USD per million tokens (input, output), Groq on-demand. Update from groq.com/pricing
 # before quoting costs; these were filled in by hand and may be stale.
-PRICE_PER_MILLION = {
+PRICE_PER_MILLION: dict[str, tuple[float, float] | None] = {
     "openai/gpt-oss-120b": (0.15, 0.60),
     "openai/gpt-oss-20b": (0.075, 0.30),
-    "qwen/qwen3-32b": (0.29, 0.59),
+    # No published on-demand price found for this model yet; cost reads as unknown until set.
+    "qwen/qwen3.8-27b": None,
     "meta-llama/llama-prompt-guard-2-86m": (0.04, 0.04),
 }
 
@@ -46,16 +47,21 @@ def severity(row: dict) -> str:
     return row["verdict"]["severity"] if row["verdict"] else "none"
 
 
-def tokens_and_cost(rows: list[dict]) -> tuple[float, float]:
-    """Tokens and USD per 1,000 reports at the listed prices."""
+def tokens_and_cost(rows: list[dict]) -> tuple[int, float | None]:
+    """Tokens and USD per 1,000 reports; cost is None if any model's price is unknown."""
     tokens = cost = 0.0
+    priced = True
     for row in rows:
         for model, usage in row["usage"].items():
             tokens += usage["input_tokens"] + usage["output_tokens"]
-            price_in, price_out = PRICE_PER_MILLION.get(model, (0.0, 0.0))
+            price = PRICE_PER_MILLION.get(model, (0.0, 0.0))
+            if price is None:
+                priced = False
+                continue
+            price_in, price_out = price
             cost += (usage["input_tokens"] * price_in + usage["output_tokens"] * price_out) / 1e6
     scale = 1000 / len(rows) if rows else 0.0
-    return round(tokens * scale), round(cost * scale, 4)
+    return round(tokens * scale), round(cost * scale, 4) if priced else None
 
 
 def cell_metrics(rows: list[dict]) -> dict:
