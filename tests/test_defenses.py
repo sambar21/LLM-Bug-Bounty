@@ -181,3 +181,10 @@ def test_spent_quota_skips_only_that_models_cells(capsys):
     assert done == 4  # spent: real (empty) done, fake_clean hit the limit, rest skipped
     assert {row["judge"] for row in rows} == {"fresh"}
     assert "daily limit for spent" in capsys.readouterr().out
+
+
+def test_keyword_baseline_needs_a_term_and_evidence():
+    assert defenses.keyword_baseline("IDOR\nGET /v2/users/2 HTTP/1.1").verdict.valid
+    assert not defenses.keyword_baseline("IDOR somewhere, trust me").verdict.valid
+    rce = defenses.keyword_baseline("RCE via POST /upload")
+    assert rce.verdict.severity == "critical" and rce.usage == {}

@@ -56,6 +56,34 @@ RETRY_NOTE = (
     "Reply again with only the JSON object described above."
 )
 
+# The keyword baseline: what a regex triager would do, to show what the LLM adds.
+KEYWORD_VULN_TERMS = (
+    "sql injection",
+    "sqli",
+    "idor",
+    "insecure direct object",
+    "ssrf",
+    "xss",
+    "cross-site scripting",
+    "remote code execution",
+    "rce",
+    "command injection",
+    "path traversal",
+    "privilege escalation",
+    "account takeover",
+    "authentication bypass",
+    "csrf",
+    "open redirect",
+    "arbitrary file read",
+)
+KEYWORD_CRITICAL_TERMS = (
+    "remote code execution",
+    "rce",
+    "account takeover",
+    "authentication bypass",
+)
+KEYWORD_EVIDENCE_TERMS = ("http/1.1", "http/2", "get /", "post /", "put /", "curl ")
+
 DATAMARK = "^"
 GUARD_THRESHOLD = 0.5
 GUARD_CHUNK_CHARS = 1500
@@ -86,6 +114,17 @@ def _judged(judge: Model, result: tuple[Verdict | None, Usage]) -> Outcome:
 def baseline(report: str, judge: Model, call: Call) -> Outcome:
     """Policy in the system prompt, the raw report as the user turn."""
     return _judged(judge, call_json(call, judge, "baseline", JUDGE_SYSTEM, report, parse_verdict))
+
+
+def keyword_baseline(report: str) -> Outcome:
+    """Approve when a vulnerability term and an HTTP evidence marker both appear."""
+    text = report.lower()
+    term = any(word in text for word in KEYWORD_VULN_TERMS)
+    evidence = any(word in text for word in KEYWORD_EVIDENCE_TERMS)
+    if not (term and evidence):
+        return Outcome(verdict=Verdict(False, "none", "keyword", "no term plus evidence match"))
+    severity = "critical" if any(w in text for w in KEYWORD_CRITICAL_TERMS) else "medium"
+    return Outcome(verdict=Verdict(True, severity, "keyword", "term and evidence matched"))
 
 
 def datamark(report: str) -> str:
