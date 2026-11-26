@@ -1,26 +1,26 @@
 id,url,vuln_type,program,upvotes,bounty,valid
-231460,https://hackerone.com/reports/231460,Information Disclosure,Snapchat,436,15000.0,true
+333419,https://hackerone.com/reports/333419,Server-Side Request Forgery (SSRF),Slack,323,3500.0,true
 365271,https://hackerone.com/reports/365271,Command Injection - Generic,Basecamp,417,5000.0,true
-391217,https://hackerone.com/reports/391217,Improper Access Control - Generic,Valve,638,20000.0,true
 409850,https://hackerone.com/reports/409850,Cross-site Scripting (XSS) - Stored,Valve,499,7500.0,true
-415081,https://hackerone.com/reports/415081,Insecure Direct Object Reference (IDOR),PayPal,797,10500.0,true
 446585,https://hackerone.com/reports/446585,Improper Access Control - Generic,GitLab,762,11000.0,true
 587854,https://hackerone.com/reports/587854,Command Injection - Generic,GitLab,542,12000.0,true
-639684,https://hackerone.com/reports/639684,Cross-site Scripting (XSS) - Stored,Rockstar Games,576,1000.0,true
 658013,https://hackerone.com/reports/658013,Command Injection - Generic,GitLab,777,12000.0,true
-663628,https://hackerone.com/reports/663628,Information Disclosure,Snapchat,464,10000.0,true
 689314,https://hackerone.com/reports/689314,Privilege Escalation,GitLab,457,12000.0,true
-697099,https://hackerone.com/reports/697099,Cross-site Scripting (XSS) - Reflected,LY Corporation,489,1989.5,true
+691611,https://hackerone.com/reports/691611,Cross-site Scripting (XSS) - Reflected,Shopify,341,1750.0,true
 807448,https://hackerone.com/reports/807448,Information Disclosure,HackerOne,589,7500.0,true
-811111,https://hackerone.com/reports/811111,SQL Injection,Razer,528,2000.0,true
-819738,https://hackerone.com/reports/819738,SQL Injection,Razer,580,2000.0,true
+826361,https://hackerone.com/reports/826361,Server-Side Request Forgery (SSRF),GitLab,359,10000.0,true
 827052,https://hackerone.com/reports/827052,Path Traversal,GitLab,1503,20000.0,true
 840759,https://hackerone.com/reports/840759,Cross-site Scripting (XSS) - Reflected,HackerOne,387,500.0,true
-868436,https://hackerone.com/reports/868436,SQL Injection,Mail.ru,631,15000.0,true
-923132,https://hackerone.com/reports/923132,Server-Side Request Forgery (SSRF),Dropbox,360,4913.0,true
+850447,https://hackerone.com/reports/850447,Information Disclosure,GitLab,410,10000.0,true
+894569,https://hackerone.com/reports/894569,Business Logic Errors,GitLab,307,12000.0,true
+982291,https://hackerone.com/reports/982291,Cross-site Scripting (XSS) - Stored,Basecamp,360,5000.0,true
 1010466,https://hackerone.com/reports/1010466,Cross-site Scripting (XSS) - Stored,CS Money,450,1000.0,true
+1213237,https://hackerone.com/reports/1213237,Insecure Direct Object Reference (IDOR),Reddit,267,5000.0,true
 1295844,https://hackerone.com/reports/1295844,Business Logic Errors,Valve,443,7500.0,true
+1439593,https://hackerone.com/reports/1439593,Path Traversal,GitLab,329,29000.0,true
 1819832,https://hackerone.com/reports/1819832,Insecure Direct Object Reference (IDOR),Snapchat,801,15000.0,true
-2262382,https://hackerone.com/reports/2262382,Server-Side Request Forgery (SSRF),HackerOne,529,25000.0,true
-2293343,https://hackerone.com/reports/2293343,Improper Access Control - Generic,GitLab,989,35000.0,true
-3862641,https://hackerone.com/reports/3862641,Insecure Direct Object Reference (IDOR),HackerOne,372,15000.0,true
+1849626,https://hackerone.com/reports/1849626,Business Logic Errors,Stripe,266,5000.0,true
+1888915,https://hackerone.com/reports/1888915,Improper Access Control - Generic,Mattermost,440,750.0,true
+1960765,https://hackerone.com/reports/1960765,Server-Side Request Forgery (SSRF),Reddit,344,6000.0,true
+2032716,https://hackerone.com/reports/2032716,Information Disclosure,HackerOne,429,12500.0,true
+2967634,https://hackerone.com/reports/2967634,Improper Access Control - Generic,Reddit,296,7500.0,true

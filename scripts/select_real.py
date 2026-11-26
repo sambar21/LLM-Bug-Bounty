@@ -17,6 +17,18 @@ OUT = Path(__file__).resolve().parent.parent / "data" / "real_ids.csv"
 TOTAL = 25
 MAX_PER_TYPE = 3
 
+# Reports that cannot be triaged from their public JSON, found by probing on 2026-11-25.
+# "summary": disclosed with an empty or near-empty body. "gone": the JSON returns 404.
+EXCLUDED = {
+    "231460": "summary", "307239": "summary", "380410": "gone", "383127": "summary",
+    "391217": "summary", "403616": "summary", "415081": "summary", "639684": "summary",
+    "663628": "summary", "697099": "summary", "699082": "gone", "723060": "gone",
+    "739601": "summary", "758654": "gone", "786044": "gone", "811111": "gone",
+    "819738": "gone", "863983": "gone", "868436": "gone", "881901": "gone",
+    "923132": "gone", "1379975": "summary", "2262382": "summary", "2293343": "summary",
+    "3124517": "summary", "3862641": "summary",
+}
+
 WEB_VULN_TYPES = {
     "Cross-site Scripting (XSS) - Stored",
     "Cross-site Scripting (XSS) - Reflected",
@@ -60,7 +72,7 @@ def select(rows: list[dict]) -> list[dict]:
     seen: set[str] = set()
     for row in candidates:
         rid = report_id(row["link"])
-        if per_type[row["vuln_type"]] >= MAX_PER_TYPE or rid in seen:
+        if rid in EXCLUDED or rid in seen or per_type[row["vuln_type"]] >= MAX_PER_TYPE:
             continue
         picked.append(row)
         per_type[row["vuln_type"]] += 1
