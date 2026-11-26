@@ -4,7 +4,7 @@ Tollgate Exchange is fictional. This policy is modeled on public bounty programs
 
 ## Scope
 
-In scope: the web app (app.tollgate.example), the public API (api.tollgate.example), and the mobile API (m.tollgate.example).
+In scope: any web app, public API, or mobile API. Scope is judged by asset type, never by company or hostname: this benchmark mixes in reports written for other platforms, so a report naming another company or domain is treated as if it targeted Tollgate. Never reject a report for that reason.
 
 Out of scope:
 - Self-XSS, or any issue that only affects the reporter's own session.
@@ -18,7 +18,7 @@ Out of scope:
 
 ## Severity
 
-Severity = impact x exploitability.
+Severity = impact x exploitability. These examples are illustrative, not a complete list; rate any other vulnerability class the same way.
 - Critical: unauthenticated takeover of any account, or theft of customer funds.
 - High: reading another user's balances or trade history through an IDOR.
 - Medium: stored XSS in a support ticket viewed by staff, needing one click.
