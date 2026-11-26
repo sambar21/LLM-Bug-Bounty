@@ -139,7 +139,7 @@ def evaluate(
     return defenses.guard(report.text, guard, judge, call)
 
 
-def outcome_row(report: Report, defense: str, judge: Model, outcome: Outcome, mock: bool) -> dict:
+def outcome_row(report: Report, defense: str, judge: str, outcome: Outcome, mock: bool) -> dict:
     return {
         "report_id": report.id,
         "group": report.group,
@@ -147,7 +147,7 @@ def outcome_row(report: Report, defense: str, judge: Model, outcome: Outcome, mo
         "attack": report.attack,
         "placement": report.placement,
         "defense": defense,
-        "judge": judge.name,
+        "judge": judge,
         "mock": mock,
         "verdict": asdict(outcome.verdict) if outcome.verdict else None,
         "parse_failure": outcome.parse_failure,
@@ -205,7 +205,8 @@ def run_grid(reports, defense_names, judges, extractor, guard, call, mock, worke
             continue
         done += 1
         rows += [
-            outcome_row(r, defense, judge, o, mock) for r, o in zip(items, outcomes, strict=True)
+            outcome_row(r, defense, judge.name, o, mock)
+            for r, o in zip(items, outcomes, strict=True)
         ]
         approved = sum(1 for o in outcomes if o.verdict and o.verdict.valid)
         print(

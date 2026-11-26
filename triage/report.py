@@ -6,8 +6,11 @@ import sys
 from pathlib import Path
 
 from triage.attacks import ATTACKS
-from triage.metrics import summarize
-from triage.run import DEFENSE_ORDER, ROOT
+from triage.defenses import keyword_baseline
+from triage.metrics import cross_check_rows, summarize
+from triage.run import DEFENSE_ORDER, ROOT, load_reports, outcome_row
+
+KEYWORD_JUDGE = "keyword-baseline"
 
 SMALL_N_NOTE = (
     "n is small (25 real, 25 fake, 25 per attack); read the 95% Wilson intervals, "
@@ -32,19 +35,25 @@ def pct(cell: dict | None) -> str:
 def write_table(cells: list[dict], path: Path, mock: bool) -> None:
     lines = [
         "| Judge | Defense | Precision | Recall | False approval | ASR | Lift | "
-        "High/crit on attacked | Payout leaked | Tokens / 1k reports |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        "High/crit on attacked | Payout leaked | To human | Tokens / 1k reports | Sec / report |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for c in cells:
         lift = "-" if c["attack_lift"] is None else f"{c['attack_lift'] * 100:+.0f} pts"
+        timed = c["seconds_per_report"]
+        seconds = "-" if timed is None else f"{timed['mean']:.1f}"
         lines.append(
             f"| {c['judge']} | {c['defense']} | {pct(c['precision'])} | {pct(c['recall'])} | "
             f"{pct(c['false_approval_rate'])} | {pct(c['asr'])} | {lift} | "
             f"{pct(c['severity_inflation'])} | ${c['payout_leaked_usd']:,} | "
-            f"{c['tokens_per_1000_reports']:,} |"
+            f"{pct(c['human_review_rate'])} | {c['tokens_per_1000_reports']:,} | {seconds} |"
         )
     header = "MOCK RESULTS: offline mock model, not a real measurement.\n\n" if mock else ""
-    footer = f"\nRates with 95% Wilson intervals in brackets. {SMALL_N_NOTE}\n"
+    footer = (
+        f"\nRates with 95% Wilson intervals in brackets. {SMALL_N_NOTE} "
+        "cross-check approves only when both judges approve; disagreements go to a human. "
+        "Sec / report counts only API calls that were timed.\n"
+    )
     path.write_text(header + "\n".join(lines) + "\n" + footer, encoding="utf-8")
 
 
@@ -54,7 +63,8 @@ def write_heatmap(cells: list[dict], path: Path, mock: bool) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    judges = sorted({c["judge"] for c in cells})
+    # The keyword baseline has one column, so it lives in the table, not the heatmap.
+    judges = sorted({c["judge"] for c in cells} - {KEYWORD_JUDGE})
     attacks = sorted(ATTACKS)
     figure, axes = plt.subplots(1, len(judges), figsize=(6 * len(judges), 4.4), squeeze=False)
     for axis, judge in zip(axes[0], judges, strict=True):
@@ -82,6 +92,17 @@ def _attack_rate(by_defense: dict, defense: str, attack: str) -> float | None:
     return None if cell is None or cell["rate"] is None else cell["rate"] * 100
 
 
+def derived_rows(rows: list[dict], mock: bool) -> list[dict]:
+    """Rows needing no new model calls: the keyword baseline and the two-judge cross-check."""
+    reports = [r for items in load_reports(None).values() for r in items]
+    keyword = [
+        outcome_row(r, "keyword", KEYWORD_JUDGE, keyword_baseline(r.text), mock) for r in reports
+    ]
+    judges = sorted({row["judge"] for row in rows})
+    cross = cross_check_rows(rows, (judges[0], judges[1])) if len(judges) == 2 else []
+    return keyword + cross
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mock", action="store_true", help="report on results/mock")
@@ -91,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
     mock = any(row["mock"] for row in rows)
     if mock != args.mock:
         raise SystemExit("outcomes do not match the requested mode; refusing to mix MOCK and real")
-    cells = summarize(rows)
+    cells = summarize(rows + derived_rows(rows, mock))
     summary = {
         "mock": mock,
         "label": "MOCK" if mock else "real",
