@@ -133,7 +133,7 @@ def outcome_row(report: Report, defense: str, judge: Model, outcome: Outcome, mo
         "defense": defense, "judge": judge.name, "mock": mock,
         "verdict": asdict(outcome.verdict) if outcome.verdict else None,
         "parse_failure": outcome.parse_failure, "flagged": outcome.flagged,
-        "usage": asdict(outcome.usage),
+        "usage": {name: asdict(usage) for name, usage in sorted(outcome.usage.items())},
     }
 
 

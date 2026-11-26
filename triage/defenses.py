@@ -6,7 +6,15 @@ from dataclasses import asdict
 from pathlib import Path
 
 from triage.models import Model
-from triage.schema import Outcome, ParseError, Usage, Verdict, parse_extraction, parse_verdict
+from triage.schema import (
+    Outcome,
+    ParseError,
+    Usage,
+    Verdict,
+    merge_usage,
+    parse_extraction,
+    parse_verdict,
+)
 
 POLICY = (Path(__file__).resolve().parent.parent / "policy" / "policy.md").read_text(
     encoding="utf-8"
@@ -70,14 +78,14 @@ def call_json(call: Call, model: Model, defense: str, system: str, user: str, pa
         return None, usage
 
 
-def _judged(result: tuple[Verdict | None, Usage]) -> Outcome:
+def _judged(judge: Model, result: tuple[Verdict | None, Usage]) -> Outcome:
     verdict, usage = result
-    return Outcome(verdict=verdict, usage=usage, parse_failure=verdict is None)
+    return Outcome(verdict=verdict, usage={judge.name: usage}, parse_failure=verdict is None)
 
 
 def baseline(report: str, judge: Model, call: Call) -> Outcome:
     """Policy in the system prompt, the raw report as the user turn."""
-    return _judged(call_json(call, judge, "baseline", JUDGE_SYSTEM, report, parse_verdict))
+    return _judged(judge, call_json(call, judge, "baseline", JUDGE_SYSTEM, report, parse_verdict))
 
 
 def datamark(report: str) -> str:
@@ -88,7 +96,7 @@ def datamark(report: str) -> str:
 def spotlight(report: str, judge: Model, call: Call) -> Outcome:
     """Delimited, datamarked report with an explicit untrusted-data warning."""
     user = f"{SPOTLIGHT_NOTE}\n\n<<REPORT>>\n{datamark(report)}\n<<END REPORT>>"
-    return _judged(call_json(call, judge, "spotlight", JUDGE_SYSTEM, user, parse_verdict))
+    return _judged(judge, call_json(call, judge, "spotlight", JUDGE_SYSTEM, user, parse_verdict))
 
 
 def quarantine(report: str, extractor: Model, judge: Model, call: Call) -> Outcome:
@@ -97,10 +105,11 @@ def quarantine(report: str, extractor: Model, judge: Model, call: Call) -> Outco
         call, extractor, "quarantine", EXTRACTOR_SYSTEM, report, parse_extraction
     )
     if extraction is None:
-        return Outcome(verdict=None, usage=usage, parse_failure=True)
+        return Outcome(verdict=None, usage={extractor.name: usage}, parse_failure=True)
     user = f"{QUARANTINE_NOTE}\n\n{json.dumps(asdict(extraction), indent=2)}"
-    outcome = _judged(call_json(call, judge, "quarantine", JUDGE_SYSTEM, user, parse_verdict))
-    outcome.usage = usage + outcome.usage
+    verdict = call_json(call, judge, "quarantine", JUDGE_SYSTEM, user, parse_verdict)
+    outcome = _judged(judge, verdict)
+    outcome.usage = merge_usage({extractor.name: usage}, outcome.usage)
     return outcome
 
 
@@ -130,9 +139,9 @@ def guard(report: str, guard_model: Model, judge: Model, call: Call) -> Outcome:
         usage = usage + chunk_usage
         if parse_guard_score(text) > GUARD_THRESHOLD:
             rejected = Verdict(False, "none", "guard", "flagged as prompt injection")
-            return Outcome(verdict=rejected, usage=usage, flagged=True)
+            return Outcome(verdict=rejected, usage={guard_model.name: usage}, flagged=True)
     # Same call as the baseline defense, so this is a cache hit when baseline ran first.
     outcome = baseline(report, judge, call)
-    outcome.usage = usage + outcome.usage
+    outcome.usage = merge_usage({guard_model.name: usage}, outcome.usage)
     outcome.flagged = False
     return outcome

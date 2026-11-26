@@ -71,9 +71,19 @@ class Outcome:
     """What one defense decided about one report, and what it cost."""
 
     verdict: Verdict | None
-    usage: Usage = field(default_factory=Usage)
+    # Keyed by model name, because defenses mix models with different prices.
+    usage: dict[str, Usage] = field(default_factory=dict)
     parse_failure: bool = False
     flagged: bool | None = None
+
+
+def merge_usage(*parts: dict[str, Usage]) -> dict[str, Usage]:
+    """Add per-model usage dicts together."""
+    merged: dict[str, Usage] = {}
+    for part in parts:
+        for name, usage in part.items():
+            merged[name] = merged.get(name, Usage()) + usage
+    return merged
 
 
 def _load_object(text: str, keys: set[str]) -> dict:
