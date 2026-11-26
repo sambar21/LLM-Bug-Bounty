@@ -25,6 +25,8 @@ class Usage:
     input_tokens: int = 0
     output_tokens: int = 0
     reasoning_tokens: int = 0
+    # Wall-clock seconds of the API call itself; 0 for cached calls made before this was kept.
+    seconds: float = 0.0
 
     @property
     def total(self) -> int:
@@ -35,6 +37,7 @@ class Usage:
             self.input_tokens + other.input_tokens,
             self.output_tokens + other.output_tokens,
             self.reasoning_tokens + other.reasoning_tokens,
+            self.seconds + other.seconds,
         )
 
 

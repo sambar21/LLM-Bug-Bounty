@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import time
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -85,6 +86,7 @@ class OpenAICompatModel:
         options = _request_options(self.name)
         if self.json_mode:
             options["response_format"] = {"type": "json_object"}
+        started = time.monotonic()
         try:
             response = self._client.chat.completions.create(
                 model=self.name,
@@ -95,15 +97,16 @@ class OpenAICompatModel:
             )
         except openai.RateLimitError as exc:
             raise RateLimited(_retry_after(exc.response.headers)) from exc
-        return response.choices[0].message.content or "", _usage(response.usage)
+        seconds = round(time.monotonic() - started, 3)
+        return response.choices[0].message.content or "", _usage(response.usage, seconds)
 
 
-def _usage(usage) -> Usage:
+def _usage(usage, seconds: float) -> Usage:
     if usage is None:
-        return Usage()
+        return Usage(seconds=seconds)
     details = getattr(usage, "completion_tokens_details", None)
     reasoning = getattr(details, "reasoning_tokens", None) or 0
-    return Usage(usage.prompt_tokens, usage.completion_tokens, reasoning)
+    return Usage(usage.prompt_tokens, usage.completion_tokens, reasoning, seconds)
 
 
 TRIGGER_WORDS = ("verified", "critical", "rce")
