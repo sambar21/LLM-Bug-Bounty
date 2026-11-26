@@ -25,7 +25,7 @@ class Usage:
     input_tokens: int = 0
     output_tokens: int = 0
     reasoning_tokens: int = 0
-    # Wall-clock seconds of the API call itself; 0 for cached calls made before this was kept.
+    # Seconds the API call took; 0 for calls cached before timing was added.
     seconds: float = 0.0
 
     @property

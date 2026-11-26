@@ -1,4 +1,4 @@
-"""The four defense configurations. Each turns one report into an Outcome."""
+"""The defenses, plus a keyword baseline. Each turns one report into an Outcome."""
 
 import json
 from collections.abc import Callable
@@ -133,7 +133,7 @@ def datamark(report: str) -> str:
 
 
 def spotlight(report: str, judge: Model, call: Call) -> Outcome:
-    """Delimited, datamarked report with an explicit untrusted-data warning."""
+    """The report in delimiters, datamarked, with a warning that it is untrusted."""
     user = f"{SPOTLIGHT_NOTE}\n\n<<REPORT>>\n{datamark(report)}\n<<END REPORT>>"
     return _judged(judge, call_json(call, judge, "spotlight", JUDGE_SYSTEM, user, parse_verdict))
 
