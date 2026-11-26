@@ -12,37 +12,23 @@ from dataclasses import asdict
 from pathlib import Path
 
 from triage import defenses
-from triage.models import MockModel, Model, OpenAICompatModel, RateLimited, model_id
+from triage.models import (
+    DailyLimitReached,
+    MockModel,
+    Model,
+    NotCached,
+    OpenAICompatModel,
+    complete_with_retry,
+    model_id,
+)
 from triage.schema import GROUPS, Outcome, Report, Usage, split_front_matter
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 # Ordered so each finished day leaves complete, usable results; guard reuses baseline.
 DEFENSE_ORDER = ("baseline", "guard", "quarantine", "spotlight")
-SHORT_WAIT_SECONDS = 120
-MAX_SHORT_RETRIES = 10
 TOKENS_PER_MINUTE = 6000
 REQUESTS_PER_MINUTE = 25
-
-
-class DailyLimitReached(Exception):
-    """A 429 asked us to wait long enough that the daily quota must be spent."""
-
-    def __init__(self, model_name: str, detail: str = "long retry-after"):
-        super().__init__(f"{model_name}: {detail}")
-        self.model_name = model_name
-
-
-def complete_with_retry(model: Model, system: str, user: str, sleep=time.sleep):
-    """Sleep through short 429 waits; raise DailyLimitReached on long ones."""
-    for _ in range(MAX_SHORT_RETRIES):
-        try:
-            return model.complete(system, user)
-        except RateLimited as exc:
-            if exc.retry_after > SHORT_WAIT_SECONDS:
-                raise DailyLimitReached(model.name) from exc
-            sleep(exc.retry_after)
-    raise DailyLimitReached(model.name, f"still rate limited after {MAX_SHORT_RETRIES} waits")
 
 
 class Pacer:
@@ -71,9 +57,10 @@ class Pacer:
 class CachedCaller:
     """The Call used by defenses: one JSONL line per finished model call."""
 
-    def __init__(self, path: Path, paced: bool):
+    def __init__(self, path: Path, paced: bool, cached_only: bool = False):
         self.path = path
         self.paced = paced
+        self.cached_only = cached_only
         self.lock = threading.Lock()
         self.pacers: dict[str, Pacer] = {}
         self.cache: dict[str, dict] = {}
@@ -87,6 +74,8 @@ class CachedCaller:
         if key in self.cache:
             row = self.cache[key]
             return row["text"], Usage(**row["usage"])
+        if self.cached_only:
+            raise NotCached(model.name, "call not in cache")
         if self.paced:
             pacer = self.pacers.setdefault(
                 model.name, Pacer(TOKENS_PER_MINUTE, REQUESTS_PER_MINUTE)
@@ -201,7 +190,7 @@ def run_grid(reports, defense_names, judges, extractor, guard, call, mock, worke
             outcomes = evaluate_cell(items, defense, judge, extractor, guard, call, workers)
         except DailyLimitReached as exc:
             exhausted.add(exc.model_name)
-            print(f"daily limit for {exc.model_name}; skipping its remaining cells ({exc})")
+            print(f"{exc.model_name} unavailable ({exc}); skipping its remaining cells")
             continue
         done += 1
         rows += [
@@ -223,6 +212,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--defenses", default=",".join(DEFENSE_ORDER))
     parser.add_argument("--limit", type=int, default=None, help="max reports per group")
     parser.add_argument("--model", choices=["groq", "mock"], default="groq")
+    parser.add_argument(
+        "--cached-only", action="store_true", help="report finished calls without calling the API"
+    )
     args = parser.parse_args(argv)
     mock = args.model == "mock"
     defense_names = args.defenses.split(",")
@@ -235,13 +227,15 @@ def main(argv: list[str] | None = None) -> int:
     if not reports["real"]:
         print("note: no real reports in data/real; run `make fetch` for precision and recall")
     judges, extractor, guard = build_models(mock, args.models.split(","))
-    call = CachedCaller(out_dir / "cache.jsonl", paced=not mock)
+    call = CachedCaller(out_dir / "cache.jsonl", paced=not mock, cached_only=args.cached_only)
     rows, done, total, stopped = run_grid(
         reports, defense_names, judges, extractor, guard, call, mock
     )
     with (out_dir / "outcomes.jsonl").open("w", encoding="utf-8") as handle:
         handle.writelines(json.dumps(row) + "\n" for row in rows)
-    if stopped:
+    if stopped and args.cached_only:
+        print(f"cached-only: {done} of {total} cells were complete in the cache")
+    elif stopped:
         print(f"finished {done} of {total} cells; {total - done} remain")
         print("daily limit reached; rerun tomorrow to resume")
     else:

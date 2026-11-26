@@ -180,7 +180,7 @@ def test_spent_quota_skips_only_that_models_cells(capsys):
     assert stopped and total == 6
     assert done == 4  # spent: real (empty) done, fake_clean hit the limit, rest skipped
     assert {row["judge"] for row in rows} == {"fresh"}
-    assert "daily limit for spent" in capsys.readouterr().out
+    assert "spent unavailable" in capsys.readouterr().out
 
 
 def test_keyword_baseline_needs_a_term_and_evidence():

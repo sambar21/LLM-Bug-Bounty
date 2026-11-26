@@ -34,6 +34,34 @@ class RateLimited(Exception):
         self.retry_after = retry_after
 
 
+SHORT_WAIT_SECONDS = 120
+MAX_SHORT_RETRIES = 10
+
+
+class DailyLimitReached(Exception):
+    """A 429 asked us to wait long enough that the daily quota must be spent."""
+
+    def __init__(self, model_name: str, detail: str = "long retry-after"):
+        super().__init__(f"{model_name}: {detail}")
+        self.model_name = model_name
+
+
+class NotCached(DailyLimitReached):
+    """In --cached-only mode, a call that was never made counts as an unavailable model."""
+
+
+def complete_with_retry(model: "Model", system: str, user: str, sleep=time.sleep):
+    """Sleep through short 429 waits; raise DailyLimitReached on long ones."""
+    for _ in range(MAX_SHORT_RETRIES):
+        try:
+            return model.complete(system, user)
+        except RateLimited as exc:
+            if exc.retry_after > SHORT_WAIT_SECONDS:
+                raise DailyLimitReached(model.name) from exc
+            sleep(exc.retry_after)
+    raise DailyLimitReached(model.name, f"still rate limited after {MAX_SHORT_RETRIES} waits")
+
+
 class Model(Protocol):
     name: str
     json_mode: bool
