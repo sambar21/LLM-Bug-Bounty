@@ -56,7 +56,7 @@ def write_heatmap(cells: list[dict], path: Path, mock: bool) -> None:
 
     judges = sorted({c["judge"] for c in cells})
     attacks = sorted(ATTACKS)
-    figure, axes = plt.subplots(1, len(judges), figsize=(5.5 * len(judges), 4.2), squeeze=False)
+    figure, axes = plt.subplots(1, len(judges), figsize=(6 * len(judges), 4.4), squeeze=False)
     for axis, judge in zip(axes[0], judges, strict=True):
         by_defense = {c["defense"]: c["asr_by_attack"] for c in cells if c["judge"] == judge}
         grid = [[_attack_rate(by_defense, d, a) for d in DEFENSE_ORDER] for a in attacks]
@@ -67,7 +67,7 @@ def write_heatmap(cells: list[dict], path: Path, mock: bool) -> None:
                 label = "-" if value is None else f"{value:.0f}%"
                 colour = "white" if value is not None and value > 60 else "black"
                 axis.text(j, i, label, ha="center", va="center", color=colour)
-        axis.set_xticks(range(len(DEFENSE_ORDER)), DEFENSE_ORDER)
+        axis.set_xticks(range(len(DEFENSE_ORDER)), DEFENSE_ORDER, rotation=25, ha="right")
         axis.set_yticks(range(len(attacks)), attacks)
         axis.set_title(judge)
     title = "Attack success rate (% of attacked fakes approved)"

@@ -49,7 +49,7 @@ Reply with one JSON object with exactly these keys and nothing else:
 "evidence_summary": "at most 40 words describing that evidence"}"""
 
 QUARANTINE_NOTE = """You will not see the report itself. Another system extracted the
-fields below from it. They describe what the submitter claims, not verified facts."""
+fields below from it. They describe what the submitter claims, not established facts."""
 
 RETRY_NOTE = (
     "\n\nYour previous reply could not be parsed ({error}). "
