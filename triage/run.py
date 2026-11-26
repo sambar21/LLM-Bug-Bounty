@@ -28,6 +28,10 @@ REQUESTS_PER_MINUTE = 25
 class DailyLimitReached(Exception):
     """A 429 asked us to wait long enough that the daily quota must be spent."""
 
+    def __init__(self, model_name: str, detail: str = "long retry-after"):
+        super().__init__(f"{model_name}: {detail}")
+        self.model_name = model_name
+
 
 def complete_with_retry(model: Model, system: str, user: str, sleep=time.sleep):
     """Sleep through short 429 waits; raise DailyLimitReached on long ones."""
@@ -38,7 +42,7 @@ def complete_with_retry(model: Model, system: str, user: str, sleep=time.sleep):
             if exc.retry_after > SHORT_WAIT_SECONDS:
                 raise DailyLimitReached(model.name) from exc
             sleep(exc.retry_after)
-    raise DailyLimitReached(f"{model.name}: still rate limited after {MAX_SHORT_RETRIES} waits")
+    raise DailyLimitReached(model.name, f"still rate limited after {MAX_SHORT_RETRIES} waits")
 
 
 class Pacer:
@@ -168,33 +172,48 @@ def build_models(mock: bool, judge_keys: list[str]):
     )
 
 
+def models_for(defense: str, judge: Model, extractor: Model, guard: Model) -> set[str]:
+    """Every model a cell may call, so a spent quota skips only the cells that need it."""
+    extra = {"quarantine": {extractor.name}, "guard": {guard.name}}.get(defense, set())
+    return {judge.name} | extra
+
+
+def evaluate_cell(items, defense, judge, extractor, guard, call, workers) -> list[Outcome]:
+    pool = ThreadPoolExecutor(max_workers=workers)
+    try:
+        return list(pool.map(lambda r: evaluate(r, defense, judge, extractor, guard, call), items))
+    finally:
+        # On a spent quota, drop queued reports instead of sending each one to a 429.
+        pool.shutdown(cancel_futures=True)
+
+
 def run_grid(reports, defense_names, judges, extractor, guard, call, mock, workers=2):
-    """Run cells in order; returns (rows, cells done, cells total, stopped early)."""
+    """Run cells in order; returns (rows, cells done, cells total, any quota spent)."""
     cells = [(d, j, g) for d in DEFENSE_ORDER if d in defense_names for j in judges for g in GROUPS]
     rows: list[dict] = []
-    for done, (defense, judge, group) in enumerate(cells):
+    exhausted: set[str] = set()
+    done = 0
+    for index, (defense, judge, group) in enumerate(cells, start=1):
+        if models_for(defense, judge, extractor, guard) & exhausted:
+            continue
         items = reports[group]
         try:
-            with ThreadPoolExecutor(max_workers=workers) as pool:
-                outcomes = list(
-                    pool.map(
-                        lambda r, d=defense, j=judge: evaluate(r, d, j, extractor, guard, call),
-                        items,
-                    )
-                )
+            outcomes = evaluate_cell(items, defense, judge, extractor, guard, call, workers)
         except DailyLimitReached as exc:
-            print(f"stopped at {defense} / {judge.name} / {group}: {exc}")
-            return rows, done, len(cells), True
+            exhausted.add(exc.model_name)
+            print(f"daily limit for {exc.model_name}; skipping its remaining cells ({exc})")
+            continue
+        done += 1
         rows += [
             outcome_row(r, defense, judge, o, mock) for r, o in zip(items, outcomes, strict=True)
         ]
         approved = sum(1 for o in outcomes if o.verdict and o.verdict.valid)
         print(
-            f"[{done + 1}/{len(cells)}] {defense:<10} {judge.name:<28} {group:<13} "
+            f"[{index}/{len(cells)}] {defense:<10} {judge.name:<28} {group:<13} "
             f"n={len(items):<3} approved={approved:<3} "
             f"parse_failures={sum(o.parse_failure for o in outcomes)}"
         )
-    return rows, len(cells), len(cells), False
+    return rows, done, len(cells), bool(exhausted)
 
 
 def main(argv: list[str] | None = None) -> int:

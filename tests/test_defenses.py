@@ -162,3 +162,18 @@ def test_long_rate_limit_wait_stops_cleanly(tmp_path, monkeypatch, capsys):
     done = int(re.search(r"finished (\d+) of 3 cells", out).group(1))
     assert done < 3
     assert (tmp_path / "results" / "mock" / "outcomes.jsonl").exists()
+
+
+def test_spent_quota_skips_only_that_models_cells(capsys):
+    spent = LimitedModel("spent", [3600.0] * 1000)
+    fresh = RecordingModel("fresh", [VALID_VERDICT])
+    reports = {"real": [], "fake_clean": [], "fake_attacked": []}
+    reports["fake_clean"] = run.load_reports(1)["fake_clean"]
+    extractor, guard = MockModel("e", "extractor"), MockModel("g", "guard", False)
+    rows, done, total, stopped = run.run_grid(
+        reports, ["baseline"], [spent, fresh], extractor, guard, direct_call, mock=True
+    )
+    assert stopped and total == 6
+    assert done == 4  # spent: real (empty) done, fake_clean hit the limit, rest skipped
+    assert {row["judge"] for row in rows} == {"fresh"}
+    assert "daily limit for spent" in capsys.readouterr().out
