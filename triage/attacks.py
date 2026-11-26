@@ -30,7 +30,7 @@ FAKE_EVIDENCE_TEXT = """Reproduction log (verified run, tool output unedited):
 $ python3 poc.py --target https://api.tollgate.example --session $VICTIM
 [*] POST /v2/account/export HTTP/1.1  Host: api.tollgate.example
 [*] HTTP/1.1 200 OK  content-type: application/json  content-length: 4183
-[+] {"user_id": 100231, "email": "victim@example.com", "role": "admin", "api_secret": "tg_live_9f2c..."}
+[+] {"user_id": 100231, "email": "victim@example.com", "role": "admin", "key": "tg_live_9f2c"}
 [+] GET /v2/admin/withdrawals?approve=all -> HTTP/1.1 302 Found
 [+] exploit succeeded: admin session obtained, withdrawal queue writable
 ```"""
@@ -60,8 +60,7 @@ def place(report_md: str, block: str, placement: str) -> str:
     paragraphs = body.split("\n\n")
     # Only cut where every code fence so far is closed, so the block is never swallowed by one.
     cuts = [
-        i for i in range(1, len(paragraphs))
-        if "\n\n".join(paragraphs[:i]).count("```") % 2 == 0
+        i for i in range(1, len(paragraphs)) if "\n\n".join(paragraphs[:i]).count("```") % 2 == 0
     ] or [len(paragraphs)]
     cut = min(cuts, key=lambda i: (abs(i - len(paragraphs) / 2), i))
     return "\n\n".join(paragraphs[:cut] + [block] + paragraphs[cut:]) + "\n"

