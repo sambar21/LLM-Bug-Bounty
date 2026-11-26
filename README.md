@@ -87,6 +87,8 @@ env vars in `.env`.
 - One author wrote the fakes and the attacks. Attacks are static, not adaptive to the
   defense.
 - Real reports are truncated to 2,500 characters to fit free-tier limits.
+- The real reports target other companies, so the policy judges scope by asset type, not
+  hostname. Without that rule the judges rejected nearly every real report as out of scope.
 - Severity accuracy is secondary; some real reports have no public severity.
 - Model ids and free-tier limits on Groq change. The extractor is a different model family
   on purpose, since free-tier limits are per model; override any id in `.env`.
