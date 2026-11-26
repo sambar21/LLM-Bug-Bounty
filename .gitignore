@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Others' reports are fetched locally and never redistributed.
+data/real/*
+!data/real/.gitkeep
+
+# Only the final committed run is kept; mock runs never are.
+results/*
+!results/.gitkeep
+!results/summary.json
+!results/heatmap.png
+!results/table.md
+results/mock/
