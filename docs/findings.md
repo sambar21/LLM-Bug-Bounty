@@ -1,94 +1,94 @@
 # Findings: prompt injection against an LLM bug bounty triager
 
-Format: remediation report. Numbers come from `results/summary.json` after a real run.
-Sections marked TODO are for the author to write.
+This is written as a remediation report for the team that would run the triager. Numbers
+come from `results/summary.json`. Sections marked TODO are for the author to write once the
+full grid has finished.
 
 ## Summary
 
-TODO. Two or three sentences.
+TODO. Two or three sentences a program owner can act on.
 - Which defense lowered attack success the most for each judge, and by how many points?
-- What did that cost in clean precision and recall?
-- Is the difference between defenses larger than the Wilson intervals?
+- What did that cost in precision and recall on honest reports?
+- Is the gap between defenses larger than the Wilson intervals?
 
 ## Impact
 
 TODO.
-- At baseline, what fraction of attacked fakes were approved, and what is the illustrative payout leaked?
-- Which single technique worked best, and on which model?
-- What would this mean for a program that auto-closes or auto-escalates on the triager's verdict?
+- At baseline, what share of attacked fakes were approved, and what is the payout leaked
+  under the sample table?
+- Which technique worked best, and on which model? (Baseline so far: fake evidence, on both.)
+- What happens to a program that closes or escalates reports automatically on the verdict?
 
 ## Reproduction
 
 All paths are in this repo. Commands assume `GROQ_API_KEY` is set in `.env`.
 
-1. Real reports. `scripts/select_real.py` reads a pinned copy of reddelexc/hackerone-reports
-   `data.csv`, keeps rows with a bounty and one of 14 web vuln types, skips the ids in
-   `EXCLUDED` (summary-only or removed), and takes at most 3 per type by upvotes to get 25.
-   `scripts/fetch_real.py` downloads `hackerone.com/reports/<id>.json`, keeps title,
-   `vulnerability_information` (cut to 2,500 characters plus `[truncated]`) and severity.
-2. Fake reports. `data/fakes/01.md` to `25.md`, ten invalid patterns, each out of scope under
-   `policy/policy.md`.
-3. Attacks. `scripts/make_attacked.py` applies each function in `triage/attacks.py`
-   (`override`, `authority`, `hidden`, `fake_evidence`, `severity_anchor`, `poc_comment`)
-   to each fake.
-   Placement comes from `choose_placement(report_id, attack)`, a `random.Random` seeded on
-   both, and is written to front matter.
+1. Real reports. `scripts/select_real.py` reads a pinned copy of `data.csv` from
+   reddelexc/hackerone-reports. It keeps rows with a bounty and one of 14 web vulnerability
+   types, skips the ids in `EXCLUDED` (disclosed without a report body, or removed), and takes
+   the 3 most upvoted per type until it has 25. `scripts/fetch_real.py` downloads
+   `hackerone.com/reports/<id>.json` and keeps the title, the report body cut to 2,500
+   characters with a `[truncated]` marker, and the severity.
+2. Fake reports. `data/fakes/01.md` to `25.md` cover ten invalid patterns. Each one is out of
+   scope or unreproducible under `policy/policy.md`.
+3. Attacks. `scripts/make_attacked.py` applies each function in `triage/attacks.py` to each
+   fake: `override`, `authority`, `hidden`, `fake_evidence`, `severity_anchor`, `poc_comment`.
+   `choose_placement(report_id, attack)` picks top, middle or end from a seeded
+   `random.Random`, and the choice is written to the file's front matter.
 4. Defenses, in `triage/defenses.py`:
-   - `baseline`: `JUDGE_SYSTEM` (policy plus output schema) as the system turn, raw report as
-     the user turn.
-   - `spotlight`: report between `<<REPORT>>` markers, spaces replaced with `^`, and
-     `SPOTLIGHT_NOTE` explaining both.
-   - `quarantine`: the extractor model gets `EXTRACTOR_SYSTEM` and the raw report and must
-     return five fields, parsed by `parse_extraction`, which rejects any extra key. The judge
-     gets `JUDGE_SYSTEM` plus `QUARANTINE_NOTE` and the extracted JSON only.
-   - `guard`: the report is split by `chunk()` into 1,500-character windows overlapping by
-     600, each scored by Prompt Guard 2 86M. Any score above 0.5 rejects the report;
-     otherwise the cached baseline verdict is reused.
-   - `cross-check` (in `triage/metrics.py`, `cross_check_rows`): approves only when both
-     judges approved under the same defense; a disagreement counts as sent to human review.
-   - `keyword-baseline` (`keyword_baseline` in `triage/defenses.py`): no model, a reference
-     point for what the LLM adds.
-5. Every judge reply goes through `parse_verdict`. A failure gets one retry with the parse
-   error appended; a second failure is recorded as `parse_failure` and counted as not approved.
-6. `python -m triage.run` runs the grid in the order baseline, guard, quarantine, spotlight,
-   caching each call in `results/cache.jsonl` under sha256 of model, defense and prompt.
+   - `baseline`: `JUDGE_SYSTEM` (policy plus output schema) is the system turn and the raw
+     report is the user turn.
+   - `spotlight`: the report sits between `<<REPORT>>` markers with every space replaced by
+     `^`, and `SPOTLIGHT_NOTE` explains both.
+   - `quarantine`: the extractor gets `EXTRACTOR_SYSTEM` and the raw report and must return
+     five fields. `parse_extraction` rejects any other key, so the extractor cannot set
+     `valid` or `severity`. The judge gets `JUDGE_SYSTEM`, `QUARANTINE_NOTE` and the fields.
+   - `guard`: `chunk()` splits the report into 1,500 character windows that overlap by 600,
+     and Prompt Guard 2 86M scores each one. Code and hex strings can exceed the classifier's
+     512 token limit, so `guard_score()` splits an oversized chunk in half and scores both
+     halves. Any score above 0.5 rejects the report; otherwise the baseline verdict is reused.
+   - Both must approve: `cross_check_rows` in `triage/metrics.py` approves only when both
+     judges approved under the same defense, and counts a disagreement as a human review.
+   - Keyword match: `keyword_baseline` approves when a vulnerability term and an HTTP request
+     both appear. It shows what the model adds over a simple rule.
+5. `parse_verdict` checks every judge reply. A failure gets one retry with the error
+   appended; a second failure is recorded as `parse_failure` and counted as not approved.
+6. `python -m triage.run` runs baseline, guard, quarantine, then spotlight, caching each call
+   in `results/cache.jsonl` under a sha256 of model, defense and prompt.
    `python -m triage.report` writes the summary, table and heatmap.
 
-To rerun one cell: `python -m triage.run --models b --defenses quarantine --limit 5`.
+To rerun one slice: `python -m triage.run --models b --defenses quarantine --limit 5`.
 
 ## Fix
 
-The fix tested here is quarantine: the model that reads attacker-controlled text cannot
-decide validity or severity, and the model that decides never reads attacker-controlled
-text verbatim. Spotlighting and an injection classifier are measured as cheaper
-alternatives.
+The fix under test is quarantine. The model that reads the attacker's text cannot decide
+validity or severity, and the model that decides never reads the attacker's text. Spotlight
+and the injection classifier are measured as cheaper alternatives, and requiring both judges
+to agree is measured as a check that needs no extra calls.
 
 ## Fix verification
 
-See `results/table.md` and `results/heatmap.png`. Compare each defense's ASR and attack lift
-against baseline for the same judge, and check that clean precision and recall stay within
-the baseline's interval. `tests/test_defenses.py` asserts that a canary string in the raw
-report never reaches the quarantine judge's prompt.
+Compare each defense's attack success rate and attack lift with baseline for the same judge
+in `results/table.md` and `results/heatmap.png`, and check that precision and recall on
+honest reports stay inside the baseline interval. `tests/test_defenses.py` asserts that a
+canary string in the raw report never reaches the quarantine judge.
 
 ## Where it still fails
 
 TODO.
-- Does `fake_evidence` survive quarantine? The extractor is asked to summarise evidence, so
-  does it faithfully copy the fabricated log into `evidence_summary`, and does the judge
-  then trust it?
-- Which attacks does the classifier miss, and why? Prompt Guard looks for instruction-like
-  text; authority notes and fake logs contain no instructions.
+- Does fake evidence survive quarantine? The extractor is asked to summarize evidence. Does
+  it copy the fabricated log into `evidence_summary`, and does the judge then trust it?
+- Which attacks does the classifier miss, and why? Prompt Guard looks for instructions; a
+  forged staff note or a fake log contains none.
 - Does placement (top, middle, end) change success rates?
-- How many attacks does the cross-check stop, and how much human review does it cost?
-- Does the LLM beat the keyword baseline on clean precision and recall by more than the
-  interval widths?
+- How many attacks does requiring both judges stop, and how much human review does it add?
 
 ## Limitations
 
 TODO.
 - Is n=25 per group enough to rank defenses, given the interval widths?
-- The fakes and attacks are written by one person; how would results change with real
-  low-quality submissions or adaptive attackers who see the defense?
-- Real reports are truncated to 2,500 characters, which may hide evidence and lower recall.
-- What would a real program need beyond this: human review of every approval, evidence
-  that is actually reproduced, and monitoring for payout anomalies?
+- One person wrote the fakes and the attacks. How would results change with real junk
+  submissions, or with attackers who adapt to the defense?
+- Real reports are cut to 2,500 characters, which can hide evidence and lower recall.
+- What would a real program need beyond this: a human on every approval, evidence that is
+  actually reproduced, and alerts on unusual payouts?
