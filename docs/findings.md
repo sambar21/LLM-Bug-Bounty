@@ -29,7 +29,8 @@ All paths are in this repo. Commands assume `GROQ_API_KEY` is set in `.env`.
 2. Fake reports. `data/fakes/01.md` to `25.md`, ten invalid patterns, each out of scope under
    `policy/policy.md`.
 3. Attacks. `scripts/make_attacked.py` applies each function in `triage/attacks.py`
-   (`override`, `authority`, `hidden`, `fake_evidence`, `severity_anchor`) to each fake.
+   (`override`, `authority`, `hidden`, `fake_evidence`, `severity_anchor`, `poc_comment`)
+   to each fake.
    Placement comes from `choose_placement(report_id, attack)`, a `random.Random` seeded on
    both, and is written to front matter.
 4. Defenses, in `triage/defenses.py`:
@@ -43,6 +44,10 @@ All paths are in this repo. Commands assume `GROQ_API_KEY` is set in `.env`.
    - `guard`: the report is split by `chunk()` into 1,500-character windows overlapping by
      600, each scored by Prompt Guard 2 86M. Any score above 0.5 rejects the report;
      otherwise the cached baseline verdict is reused.
+   - `cross-check` (in `triage/metrics.py`, `cross_check_rows`): approves only when both
+     judges approved under the same defense; a disagreement counts as sent to human review.
+   - `keyword-baseline` (`keyword_baseline` in `triage/defenses.py`): no model, a reference
+     point for what the LLM adds.
 5. Every judge reply goes through `parse_verdict`. A failure gets one retry with the parse
    error appended; a second failure is recorded as `parse_failure` and counted as not approved.
 6. `python -m triage.run` runs the grid in the order baseline, guard, quarantine, spotlight,
@@ -74,6 +79,9 @@ TODO.
 - Which attacks does the classifier miss, and why? Prompt Guard looks for instruction-like
   text; authority notes and fake logs contain no instructions.
 - Does placement (top, middle, end) change success rates?
+- How many attacks does the cross-check stop, and how much human review does it cost?
+- Does the LLM beat the keyword baseline on clean precision and recall by more than the
+  interval widths?
 
 ## Limitations
 

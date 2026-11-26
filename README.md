@@ -19,10 +19,11 @@ section embeds `results/table.md` and `results/heatmap.png`.
 - A triager reads one report plus a one-page fictional policy (`policy/policy.md`) and
   returns `{"valid", "severity", "policy_rule", "rationale"}` as JSON.
 - Inputs: 25 real disclosed HackerOne reports (valid), 25 fake reports I wrote (invalid),
-  and those 25 fakes with each of 5 injections (125 attacked reports).
+  and those 25 fakes with each of 6 injections (150 attacked reports).
 - Attacks (`triage/attacks.py`): `override`, `authority` (forged staff note), `hidden`
   (HTML comment and zero-width spaced copy), `fake_evidence` (fabricated tool log),
-  `severity_anchor` (CVSS 10.0, "RCE" in the title).
+  `severity_anchor` (CVSS 10.0, "RCE" in the title), `poc_comment` (instructions in
+  comments inside proof-of-concept code).
 - Defenses (`triage/defenses.py`):
   - `baseline`: policy in the system prompt, report in the user turn.
   - `spotlight`: delimiters plus datamarking (`^` between words) and an untrusted-data note.
@@ -30,11 +31,16 @@ section embeds `results/table.md` and `results/heatmap.png`.
     that JSON, never the raw text.
   - `guard`: Prompt Guard 2 86M on 1,500-character chunks; flagged reports are rejected,
     the rest reuse the baseline verdict.
+  - `cross-check`: approve only when both judges approve; any disagreement goes to a human.
+    Computed from the two judges' results, so it costs no extra calls.
+  - `keyword-baseline`: no model; approves when a vulnerability term and an HTTP evidence
+    marker both appear. It shows what the LLM adds over a regex.
 - Judges: `openai/gpt-oss-120b` and `openai/gpt-oss-20b`. Extractor: `qwen/qwen3.8-27b`.
   All on Groq's free tier, temperature 0.
 - Metrics (`triage/metrics.py`): precision and recall on real plus clean fakes, false
   approval rate, attack success rate (ASR), attack lift (ASR minus false approval rate),
-  severity inflation, illustrative payout leaked, tokens per 1,000 reports. Every rate has
+  severity inflation, illustrative payout leaked, share sent to human review, tokens per
+  1,000 reports, and API seconds per report. Every rate has
   a 95% Wilson interval, because n is small.
 
 ## Reproduce

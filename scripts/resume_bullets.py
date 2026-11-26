@@ -51,11 +51,12 @@ def bullets(cells: dict, large: str, small: str) -> list[str]:
     lines = [
         f"Built an LLM bug bounty triager scoring {floor_pct(precision)}% precision on 50 "
         "hand-labeled reports (25 real HackerOne disclosures, 25 fakes).",
-        "Red-teamed it with 5 prompt injection techniques hidden in 125 fake reports; "
+        f"Red-teamed it with {len(base['asr_by_attack'])} prompt injection techniques hidden "
+        f"in {base['asr']['n']} fake reports; "
         f"{floor_pct(asr_base)}% were approved as valid, worth ${leak:,} under a sample "
         "payout table.",
         defense_bullet(base, quar, asr_base, asr_q, asr_guard, guard),
-        size_bullet(asr_base, rate(small_base, "asr")),
+        size_bullet(asr_base, rate(small_base, "asr"), base["asr"]["n"]),
     ]
     return lines
 
@@ -87,8 +88,8 @@ def defense_bullet(base, quar, asr_base, asr_q, asr_guard, guard) -> str:
     return line
 
 
-def size_bullet(asr_large: float, asr_small: float) -> str:
-    tail = "released the 125-report attack set as a one-command benchmark."
+def size_bullet(asr_large: float, asr_small: float, attacked: int) -> str:
+    tail = f"released the {attacked}-report attack set as a one-command benchmark."
     if asr_large == 0 or asr_small <= asr_large:
         return (
             f"Found the 20B model no easier to hijack than the 120B model "
