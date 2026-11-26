@@ -12,6 +12,7 @@ Out of scope:
 - Clickjacking on pages with no state-changing actions.
 - Rate limiting on non-sensitive endpoints.
 - Version or banner disclosure.
+- CSRF on logout, and redirects that stay on Tollgate domains.
 - Best-practice findings with no exploit.
 - Reports without a working reproduction.
 
