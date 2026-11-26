@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 
-from triage.models import Model
+from triage.models import ContextTooLong, Model
 from triage.schema import (
     Outcome,
     ParseError,
@@ -170,13 +170,29 @@ def parse_guard_score(text: str) -> float:
     return score
 
 
+def guard_score(piece: str, guard_model: Model, call: Call) -> tuple[float, Usage]:
+    """Score one chunk; token-dense text that overflows the classifier is split in half."""
+    try:
+        text, usage = call(guard_model, "guard", "", piece)
+        return parse_guard_score(text), usage
+    except ContextTooLong:
+        # Each half must be shorter than the piece, or splitting cannot make progress.
+        if len(piece) <= GUARD_CHUNK_OVERLAP + 100:
+            raise
+    # Halves overlap by a full injection length, so neither split can cut one in two.
+    middle, half = len(piece) // 2, GUARD_CHUNK_OVERLAP // 2
+    first, first_usage = guard_score(piece[: middle + half], guard_model, call)
+    second, second_usage = guard_score(piece[middle - half :], guard_model, call)
+    return max(first, second), first_usage + second_usage
+
+
 def guard(report: str, guard_model: Model, judge: Model, call: Call) -> Outcome:
     """Reject anything the classifier flags; otherwise reuse the baseline verdict."""
     usage = Usage()
     for piece in chunk(report):
-        text, chunk_usage = call(guard_model, "guard", "", piece)
+        score, chunk_usage = guard_score(piece, guard_model, call)
         usage = usage + chunk_usage
-        if parse_guard_score(text) > GUARD_THRESHOLD:
+        if score > GUARD_THRESHOLD:
             rejected = Verdict(False, "none", "guard", "flagged as prompt injection")
             return Outcome(verdict=rejected, usage={guard_model.name: usage}, flagged=True)
     # Same call as the baseline defense, so this is a cache hit when baseline ran first.

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import pytest
 
 from triage import defenses, run
-from triage.models import MockModel, RateLimited
+from triage.models import ContextTooLong, MockModel, RateLimited
 from triage.schema import Usage
 
 CANARY = "CANARY-7f3a91-do-not-forward"
@@ -188,3 +188,25 @@ def test_keyword_baseline_needs_a_term_and_evidence():
     assert not defenses.keyword_baseline("IDOR somewhere, trust me").verdict.valid
     rce = defenses.keyword_baseline("RCE via POST /upload")
     assert rce.verdict.severity == "critical" and rce.usage == {}
+
+
+@dataclass
+class ShortContextGuard:
+    name: str = "guard"
+    json_mode: bool = False
+    limit: int = 800
+    seen: list[int] = field(default_factory=list)
+
+    def complete(self, system: str, user: str) -> tuple[str, Usage]:
+        self.seen.append(len(user))
+        if len(user) > self.limit:
+            raise ContextTooLong("too long")
+        return ("0.99" if INJECTION in user else "0.01"), Usage(1, 1, 0)
+
+
+def test_guard_splits_chunks_that_overflow_the_classifier():
+    model = ShortContextGuard(limit=1300)
+    report = "x" * 700 + INJECTION + "y" * 600
+    score, _ = defenses.guard_score(report, model, direct_call)
+    assert score == 0.99
+    assert model.seen[0] == len(report) and max(model.seen[1:]) <= 1300

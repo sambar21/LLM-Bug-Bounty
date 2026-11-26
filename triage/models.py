@@ -22,6 +22,10 @@ DEFAULT_MODELS = {
 MAX_OUTPUT_TOKENS = 400
 
 
+class ContextTooLong(Exception):
+    """The prompt does not fit the model's context window."""
+
+
 class RateLimited(Exception):
     """The provider returned 429; retry_after is in seconds."""
 
@@ -97,6 +101,10 @@ class OpenAICompatModel:
             )
         except openai.RateLimitError as exc:
             raise RateLimited(_retry_after(exc.response.headers)) from exc
+        except openai.BadRequestError as exc:
+            if getattr(exc, "code", None) == "context_length_exceeded":
+                raise ContextTooLong(f"{self.name}: {len(user)} chars did not fit") from exc
+            raise
         seconds = round(time.monotonic() - started, 3)
         return response.choices[0].message.content or "", _usage(response.usage, seconds)
 
