@@ -92,8 +92,13 @@ def main(argv: list[str] | None = None) -> int:
     if mock != args.mock:
         raise SystemExit("outcomes do not match the requested mode; refusing to mix MOCK and real")
     cells = summarize(rows)
-    summary = {"mock": mock, "label": "MOCK" if mock else "real", "rows": len(rows),
-               "note": SMALL_N_NOTE, "cells": cells}
+    summary = {
+        "mock": mock,
+        "label": "MOCK" if mock else "real",
+        "rows": len(rows),
+        "note": SMALL_N_NOTE,
+        "cells": cells,
+    }
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     write_table(cells, out_dir / "table.md", mock)
     write_heatmap(cells, out_dir / "heatmap.png", mock)

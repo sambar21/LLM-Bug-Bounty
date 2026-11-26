@@ -20,13 +20,32 @@ MAX_PER_TYPE = 3
 # Reports that cannot be triaged from their public JSON, found by probing on 2026-11-25.
 # "summary": disclosed with an empty or near-empty body. "gone": the JSON returns 404.
 EXCLUDED = {
-    "231460": "summary", "307239": "summary", "380410": "gone", "383127": "summary",
-    "391217": "summary", "403616": "summary", "415081": "summary", "639684": "summary",
-    "663628": "summary", "697099": "summary", "699082": "gone", "723060": "gone",
-    "739601": "summary", "758654": "gone", "786044": "gone", "811111": "gone",
-    "819738": "gone", "863983": "gone", "868436": "gone", "881901": "gone",
-    "923132": "gone", "1379975": "summary", "2262382": "summary", "2293343": "summary",
-    "3124517": "summary", "3862641": "summary",
+    "231460": "summary",
+    "307239": "summary",
+    "380410": "gone",
+    "383127": "summary",
+    "391217": "summary",
+    "403616": "summary",
+    "415081": "summary",
+    "639684": "summary",
+    "663628": "summary",
+    "697099": "summary",
+    "699082": "gone",
+    "723060": "gone",
+    "739601": "summary",
+    "758654": "gone",
+    "786044": "gone",
+    "811111": "gone",
+    "819738": "gone",
+    "863983": "gone",
+    "868436": "gone",
+    "881901": "gone",
+    "923132": "gone",
+    "1379975": "summary",
+    "2262382": "summary",
+    "2293343": "summary",
+    "3124517": "summary",
+    "3862641": "summary",
 }
 
 WEB_VULN_TYPES = {
@@ -63,8 +82,7 @@ def report_id(link: str) -> str:
 def select(rows: list[dict]) -> list[dict]:
     """Highest upvotes first, at most 3 per vuln type, ties broken by report id."""
     candidates = [
-        row for row in rows
-        if row["vuln_type"] in WEB_VULN_TYPES and float(row["bounty"] or 0) > 0
+        row for row in rows if row["vuln_type"] in WEB_VULN_TYPES and float(row["bounty"] or 0) > 0
     ]
     candidates.sort(key=lambda row: (-int(row["upvotes"]), int(report_id(row["link"]))))
     picked: list[dict] = []
@@ -94,8 +112,17 @@ def main(argv: list[str] | None = None) -> int:
         writer.writerow(["id", "url", "vuln_type", "program", "upvotes", "bounty", "valid"])
         for row in sorted(picked, key=lambda r: int(report_id(r["link"]))):
             rid = report_id(row["link"])
-            writer.writerow([rid, f"https://hackerone.com/reports/{rid}", row["vuln_type"],
-                             row["program"], row["upvotes"], row["bounty"], "true"])
+            writer.writerow(
+                [
+                    rid,
+                    f"https://hackerone.com/reports/{rid}",
+                    row["vuln_type"],
+                    row["program"],
+                    row["upvotes"],
+                    row["bounty"],
+                    "true",
+                ]
+            )
     print(f"wrote {len(picked)} report ids to {OUT}")
     return 0
 

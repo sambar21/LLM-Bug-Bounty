@@ -29,8 +29,10 @@ def report_texts() -> list[str]:
     groups = load_reports(None)
     texts = [r.text for items in groups.values() for r in items]
     if not groups["real"]:
-        print(f"note: data/real is empty; assuming {REAL_COUNT} real reports of "
-              f"{UNFETCHED_REAL_CHARS} chars each")
+        print(
+            f"note: data/real is empty; assuming {REAL_COUNT} real reports of "
+            f"{UNFETCHED_REAL_CHARS} chars each"
+        )
         texts += ["x" * UNFETCHED_REAL_CHARS] * REAL_COUNT
     return texts
 
@@ -64,16 +66,20 @@ def main(argv: list[str] | None = None) -> int:
     judges = [model_id(f"JUDGE_{key.upper()}_MODEL") for key in args.models.split(",")]
     texts = report_texts()
     print(f"{len(texts)} reports; 4 defenses (guard reuses baseline verdicts)")
-    print(f"limits assumed per model: {REQUESTS_PER_DAY:,} requests/day, "
-          f"{TOKENS_PER_DAY:,} tokens/day")
+    print(
+        f"limits assumed per model: {REQUESTS_PER_DAY:,} requests/day, "
+        f"{TOKENS_PER_DAY:,} tokens/day"
+    )
     print(f"{'model':<40} {'calls':>7} {'est. tokens':>12} {'days':>6}")
     longest = 0.0
     for name, (calls, total) in sorted(plan(texts, judges).items()):
         days = max(calls / REQUESTS_PER_DAY, total / TOKENS_PER_DAY)
         longest = max(longest, days)
         print(f"{name:<40} {calls:>7,} {total:>12,} {days:>6.1f}")
-    print(f"models run on separate quotas, so the full grid needs about "
-          f"{math.ceil(longest)} days; parse retries add a little")
+    print(
+        f"models run on separate quotas, so the full grid needs about "
+        f"{math.ceil(longest)} days; parse retries add a little"
+    )
     return 0
 
 

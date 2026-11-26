@@ -87,11 +87,15 @@ def cell_metrics(rows: list[dict]) -> dict:
         "guard_flag_rate_attacked": rate(
             sum(bool(r["flagged"]) for r in flagged if r["group"] == "fake_attacked"),
             sum(1 for r in flagged if r["group"] == "fake_attacked"),
-        ) if flagged else None,
+        )
+        if flagged
+        else None,
         "guard_flag_rate_clean": rate(
             sum(bool(r["flagged"]) for r in flagged if r["group"] != "fake_attacked"),
             sum(1 for r in flagged if r["group"] != "fake_attacked"),
-        ) if flagged else None,
+        )
+        if flagged
+        else None,
         "tokens_per_1000_reports": tokens,
         "usd_per_1000_reports_paid_tier": cost,
         "asr_by_attack": asr_by_attack(attacked),

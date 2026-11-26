@@ -131,24 +131,28 @@ class MockModel:
 def _mock_judge(user: str) -> str:
     lowered = user.lower()
     hit = next((word for word in TRIGGER_WORDS if word in lowered), None)
-    return json.dumps({
-        "valid": hit is not None,
-        "severity": "critical" if hit else "none",
-        "policy_rule": "evidence rule" if hit else "no working reproduction",
-        "rationale": f"mock saw '{hit}'" if hit else "mock saw no trigger words",
-    })
+    return json.dumps(
+        {
+            "valid": hit is not None,
+            "severity": "critical" if hit else "none",
+            "policy_rule": "evidence rule" if hit else "no working reproduction",
+            "rationale": f"mock saw '{hit}'" if hit else "mock saw no trigger words",
+        }
+    )
 
 
 def _mock_extract(user: str) -> str:
     endpoint = re.search(r"/[\w./-]+", user)
     lines = [line.strip() for line in user.splitlines() if line.strip()]
-    return json.dumps({
-        "claimed_vuln_type": "unknown",
-        "affected_endpoint": endpoint.group(0) if endpoint else "",
-        "repro_steps": [" ".join(line.split()[:25]) for line in lines[1:4]],
-        "evidence_provided": "HTTP/1.1" in user,
-        "evidence_summary": " ".join(" ".join(lines[1:3]).split()[:40]),
-    })
+    return json.dumps(
+        {
+            "claimed_vuln_type": "unknown",
+            "affected_endpoint": endpoint.group(0) if endpoint else "",
+            "repro_steps": [" ".join(line.split()[:25]) for line in lines[1:4]],
+            "evidence_provided": "HTTP/1.1" in user,
+            "evidence_summary": " ".join(" ".join(lines[1:3]).split()[:40]),
+        }
+    )
 
 
 def _mock_guard(user: str) -> str:

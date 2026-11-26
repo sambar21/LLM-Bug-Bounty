@@ -24,8 +24,9 @@ def truncate(body: str, limit: int = MAX_CHARS) -> str:
 
 
 def fetch_json(url: str) -> dict:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT,
-                                                   "Accept": "application/json"})
+    request = urllib.request.Request(
+        url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"}
+    )
     for attempt in range(1, RETRIES + 1):
         try:
             with urllib.request.urlopen(request, timeout=30) as response:

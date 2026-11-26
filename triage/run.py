@@ -84,11 +84,18 @@ class CachedCaller:
             row = self.cache[key]
             return row["text"], Usage(**row["usage"])
         if self.paced:
-            pacer = self.pacers.setdefault(model.name, Pacer(TOKENS_PER_MINUTE, REQUESTS_PER_MINUTE))
+            pacer = self.pacers.setdefault(
+                model.name, Pacer(TOKENS_PER_MINUTE, REQUESTS_PER_MINUTE)
+            )
             pacer.wait(len(system + user) // 4 + 400)
         text, usage = complete_with_retry(model, system, user)
-        row = {"key": key, "model": model.name, "defense": defense, "text": text,
-               "usage": asdict(usage)}
+        row = {
+            "key": key,
+            "model": model.name,
+            "defense": defense,
+            "text": text,
+            "usage": asdict(usage),
+        }
         with self.lock:
             self.cache[key] = row
             with self.path.open("a", encoding="utf-8") as handle:
@@ -109,14 +116,16 @@ def load_reports(limit: int | None) -> dict[str, list[Report]]:
     for path in sorted((DATA / "attacked").glob("*.md")):
         meta, body = split_front_matter(path.read_text(encoding="utf-8"))
         groups["fake_attacked"].append(
-            Report(meta["id"], "fake_attacked", body, False, "none",
-                   meta["attack"], meta["placement"])
+            Report(
+                meta["id"], "fake_attacked", body, False, "none", meta["attack"], meta["placement"]
+            )
         )
     return {group: items[:limit] for group, items in groups.items()}
 
 
-def evaluate(report: Report, defense: str, judge: Model, extractor: Model, guard: Model,
-             call: CachedCaller) -> Outcome:
+def evaluate(
+    report: Report, defense: str, judge: Model, extractor: Model, guard: Model, call: CachedCaller
+) -> Outcome:
     if defense == "baseline":
         return defenses.baseline(report.text, judge, call)
     if defense == "spotlight":
@@ -128,11 +137,17 @@ def evaluate(report: Report, defense: str, judge: Model, extractor: Model, guard
 
 def outcome_row(report: Report, defense: str, judge: Model, outcome: Outcome, mock: bool) -> dict:
     return {
-        "report_id": report.id, "group": report.group, "label_valid": report.valid,
-        "attack": report.attack, "placement": report.placement,
-        "defense": defense, "judge": judge.name, "mock": mock,
+        "report_id": report.id,
+        "group": report.group,
+        "label_valid": report.valid,
+        "attack": report.attack,
+        "placement": report.placement,
+        "defense": defense,
+        "judge": judge.name,
+        "mock": mock,
         "verdict": asdict(outcome.verdict) if outcome.verdict else None,
-        "parse_failure": outcome.parse_failure, "flagged": outcome.flagged,
+        "parse_failure": outcome.parse_failure,
+        "flagged": outcome.flagged,
         "usage": {name: asdict(usage) for name, usage in sorted(outcome.usage.items())},
     }
 
@@ -140,10 +155,17 @@ def outcome_row(report: Report, defense: str, judge: Model, outcome: Outcome, mo
 def build_models(mock: bool, judge_keys: list[str]):
     if mock:
         judges = [MockModel(f"MOCK-judge-{key}") for key in judge_keys]
-        return judges, MockModel("MOCK-extractor", "extractor"), MockModel("MOCK-guard", "guard", False)
+        return (
+            judges,
+            MockModel("MOCK-extractor", "extractor"),
+            MockModel("MOCK-guard", "guard", False),
+        )
     judges = [OpenAICompatModel(model_id(f"JUDGE_{key.upper()}_MODEL")) for key in judge_keys]
-    return (judges, OpenAICompatModel(model_id("EXTRACTOR_MODEL")),
-            OpenAICompatModel(model_id("GUARD_MODEL"), json_mode=False))
+    return (
+        judges,
+        OpenAICompatModel(model_id("EXTRACTOR_MODEL")),
+        OpenAICompatModel(model_id("GUARD_MODEL"), json_mode=False),
+    )
 
 
 def run_grid(reports, defense_names, judges, extractor, guard, call, mock, workers=2):
@@ -154,16 +176,24 @@ def run_grid(reports, defense_names, judges, extractor, guard, call, mock, worke
         items = reports[group]
         try:
             with ThreadPoolExecutor(max_workers=workers) as pool:
-                outcomes = list(pool.map(
-                    lambda r, d=defense, j=judge: evaluate(r, d, j, extractor, guard, call), items))
+                outcomes = list(
+                    pool.map(
+                        lambda r, d=defense, j=judge: evaluate(r, d, j, extractor, guard, call),
+                        items,
+                    )
+                )
         except DailyLimitReached as exc:
             print(f"stopped at {defense} / {judge.name} / {group}: {exc}")
             return rows, done, len(cells), True
-        rows += [outcome_row(r, defense, judge, o, mock) for r, o in zip(items, outcomes, strict=True)]
+        rows += [
+            outcome_row(r, defense, judge, o, mock) for r, o in zip(items, outcomes, strict=True)
+        ]
         approved = sum(1 for o in outcomes if o.verdict and o.verdict.valid)
-        print(f"[{done + 1}/{len(cells)}] {defense:<10} {judge.name:<28} {group:<13} "
-              f"n={len(items):<3} approved={approved:<3} "
-              f"parse_failures={sum(o.parse_failure for o in outcomes)}")
+        print(
+            f"[{done + 1}/{len(cells)}] {defense:<10} {judge.name:<28} {group:<13} "
+            f"n={len(items):<3} approved={approved:<3} "
+            f"parse_failures={sum(o.parse_failure for o in outcomes)}"
+        )
     return rows, len(cells), len(cells), False
 
 
@@ -186,8 +216,9 @@ def main(argv: list[str] | None = None) -> int:
         print("note: no real reports in data/real; run `make fetch` for precision and recall")
     judges, extractor, guard = build_models(mock, args.models.split(","))
     call = CachedCaller(out_dir / "cache.jsonl", paced=not mock)
-    rows, done, total, stopped = run_grid(reports, defense_names, judges, extractor, guard,
-                                          call, mock)
+    rows, done, total, stopped = run_grid(
+        reports, defense_names, judges, extractor, guard, call, mock
+    )
     with (out_dir / "outcomes.jsonl").open("w", encoding="utf-8") as handle:
         handle.writelines(json.dumps(row) + "\n" for row in rows)
     if stopped:

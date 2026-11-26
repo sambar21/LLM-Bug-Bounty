@@ -64,29 +64,42 @@ def defense_bullet(base, quar, asr_base, asr_q, asr_guard, guard) -> str:
     caught = floor_pct(guard["guard_flag_rate_attacked"]["rate"])
     delta = (rate(base, "precision") - rate(quar, "precision")) * 100
     if asr_q >= asr_base:
-        return (f"Tested splitting extraction from judgment; it did not reduce prompt injection "
-                f"success ({floor_pct(asr_base)}% before, {ceil_pct(asr_q)}% after). An "
-                f"off-the-shelf injection classifier caught {caught}% of attacks.")
-    cost = (f"at a cost of {math.ceil(delta)} points of precision" if delta > 0
-            else "with no loss of precision")
-    line = (f"Cut prompt injection success from {floor_pct(asr_base)}% to {ceil_pct(asr_q)}% "
-            f"by splitting extraction from judgment, {cost}; an off-the-shelf injection "
-            f"classifier caught {caught}% of attacks.")
+        return (
+            f"Tested splitting extraction from judgment; it did not reduce prompt injection "
+            f"success ({floor_pct(asr_base)}% before, {ceil_pct(asr_q)}% after). An "
+            f"off-the-shelf injection classifier caught {caught}% of attacks."
+        )
+    cost = (
+        f"at a cost of {math.ceil(delta)} points of precision"
+        if delta > 0
+        else "with no loss of precision"
+    )
+    line = (
+        f"Cut prompt injection success from {floor_pct(asr_base)}% to {ceil_pct(asr_q)}% "
+        f"by splitting extraction from judgment, {cost}; an off-the-shelf injection "
+        f"classifier caught {caught}% of attacks."
+    )
     if asr_guard < asr_q:
-        line += (f" The classifier did better on its own, leaving {ceil_pct(asr_guard)}% "
-                 "of attacks approved.")
+        line += (
+            f" The classifier did better on its own, leaving {ceil_pct(asr_guard)}% "
+            "of attacks approved."
+        )
     return line
 
 
 def size_bullet(asr_large: float, asr_small: float) -> str:
     tail = "released the 125-report attack set as a one-command benchmark."
     if asr_large == 0 or asr_small <= asr_large:
-        return (f"Found the 20B model no easier to hijack than the 120B model "
-                f"({floor_pct(asr_small)}% vs {floor_pct(asr_large)}% approved); {tail}")
+        return (
+            f"Found the 20B model no easier to hijack than the 120B model "
+            f"({floor_pct(asr_small)}% vs {floor_pct(asr_large)}% approved); {tail}"
+        )
     ratio = math.floor(asr_small / asr_large * 10) / 10
     if ratio < 1.1:
-        return (f"Found the 20B and 120B models about equally easy to hijack "
-                f"({floor_pct(asr_small)}% vs {floor_pct(asr_large)}% approved); {tail}")
+        return (
+            f"Found the 20B and 120B models about equally easy to hijack "
+            f"({floor_pct(asr_small)}% vs {floor_pct(asr_large)}% approved); {tail}"
+        )
     return f"Found the 20B model {ratio}x easier to hijack than the 120B model; {tail}"
 
 
